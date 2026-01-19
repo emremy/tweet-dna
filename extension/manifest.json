@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "X Network Exporter",
+  "version": "0.1.0",
+  "description": "Export tweets from X using GraphQL endpoint capture",
+  "action": {
+    "default_popup": "src/popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://x.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/injected.js",
+        "src/normalize.js"
+      ],
+      "matches": [
+        "https://x.com/*"
+      ]
+    }
+  ]
+}

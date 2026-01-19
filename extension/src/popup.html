@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X Network Exporter</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 380px;
+      padding: 16px;
+      background: #15202b;
+      color: #e7e9ea;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #1d9bf0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #8899a6;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #38444d;
+      border-radius: 6px;
+      background: #192734;
+      color: #e7e9ea;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #1d9bf0;
+    }
+
+    textarea {
+      min-height: 120px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 11px;
+      resize: vertical;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #1d9bf0;
+    }
+
+    .checkbox-group label {
+      margin-bottom: 0;
+      font-size: 14px;
+      color: #e7e9ea;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #1d9bf0;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #38444d;
+      color: #e7e9ea;
+    }
+
+    .btn-danger {
+      background: #f4212e;
+      color: #fff;
+    }
+
+    .btn-success {
+      background: #00ba7c;
+      color: #fff;
+    }
+
+    .btn-capture {
+      background: #7856ff;
+      color: #fff;
+    }
+
+    .btn-small {
+      flex: none;
+      padding: 8px 14px;
+      font-size: 13px;
+    }
+
+    .status-bar {
+      margin-top: 16px;
+      padding: 12px;
+      background: #192734;
+      border-radius: 8px;
+      border: 1px solid #38444d;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .status-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .status-label {
+      color: #8899a6;
+    }
+
+    .status-value {
+      color: #e7e9ea;
+      font-weight: 500;
+    }
+
+    .status-value.running {
+      color: #1d9bf0;
+    }
+
+    .status-value.done {
+      color: #00ba7c;
+    }
+
+    .status-value.error {
+      color: #f4212e;
+    }
+
+    .status-value.captured {
+      color: #00ba7c;
+    }
+
+    .status-value.waiting {
+      color: #ffad1f;
+    }
+
+    .error-message {
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(244, 33, 46, 0.1);
+      border: 1px solid #f4212e;
+      border-radius: 6px;
+      color: #f4212e;
+      font-size: 12px;
+      display: none;
+    }
+
+    .error-message.visible {
+      display: block;
+    }
+
+    .capture-status {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #192734;
+      border-radius: 8px;
+      border: 1px solid #38444d;
+    }
+
+    .capture-status.captured {
+      border-color: #00ba7c;
+      background: rgba(0, 186, 124, 0.1);
+    }
+
+    .capture-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .capture-hint {
+      font-size: 11px;
+      color: #8899a6;
+    }
+
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 8px 0;
+    }
+
+    .collapsible-header:hover {
+      color: #1d9bf0;
+    }
+
+    .collapsible-content {
+      display: none;
+    }
+
+    .collapsible-content.expanded {
+      display: block;
+    }
+
+    .arrow {
+      transition: transform 0.2s;
+    }
+
+    .arrow.expanded {
+      transform: rotate(90deg);
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #38444d;
+      margin: 12px 0;
+    }
+
+    .inline-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .inline-row .form-group {
+      flex: 1;
+    }
+
+    .input-with-button {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .input-with-button .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    .input-with-button button {
+      margin-bottom: 0;
+      height: 38px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #8899a6;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="#1d9bf0">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    </svg>
+    Network Exporter
+  </h1>
+
+  <div class="capture-status" id="captureStatus">
+    <div class="capture-title">
+      <span id="captureIcon">&#9711;</span>
+      <span id="captureText">Waiting for request capture...</span>
+    </div>
+    <div class="capture-hint" id="captureHint">
+      Enter a username and click "Capture" to auto-capture the request
+    </div>
+  </div>
+
+  <div class="section-title">Step 1: Capture Request</div>
+
+  <div class="input-with-button">
+    <div class="form-group">
+      <label for="targetUsername">Username</label>
+      <input type="text" id="targetUsername" placeholder="e.g., elonmusk">
+    </div>
+    <button class="btn-capture btn-small" id="btnCapture">Capture</button>
+  </div>
+
+  <hr>
+
+  <div class="section-title">Step 2: Export Tweets</div>
+
+  <div class="form-group">
+    <label for="targetUserId">User ID (auto-filled after capture)</label>
+    <input type="text" id="targetUserId" placeholder="Will be captured automatically">
+  </div>
+
+  <div class="inline-row">
+    <div class="form-group">
+      <label for="maxTweets">Max Tweets</label>
+      <input type="number" id="maxTweets" value="2000" min="1" max="10000">
+    </div>
+    <div class="form-group">
+      <label for="delayMs">Delay (ms)</label>
+      <input type="number" id="delayMs" value="750" min="100" max="5000">
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="minViews">Minimum Views (0 = no filter)</label>
+    <input type="number" id="minViews" value="0" min="0" max="100000000" placeholder="e.g., 100000">
+  </div>
+
+  <div class="form-group checkbox-group">
+    <input type="checkbox" id="includeReplies" checked>
+    <label for="includeReplies">Include Replies</label>
+  </div>
+
+  <div class="button-row">
+    <button class="btn-primary" id="btnStart">Start Export</button>
+    <button class="btn-danger" id="btnStop" disabled>Stop</button>
+  </div>
+
+  <div class="button-row">
+    <button class="btn-success" id="btnExport" disabled>Download JSONL</button>
+    <button class="btn-secondary" id="btnReset">Reset</button>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-row">
+      <span class="status-label">Status:</span>
+      <span class="status-value" id="statusText">Idle</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Tweets Captured:</span>
+      <span class="status-value" id="tweetCount">0</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Pages Fetched:</span>
+      <span class="status-value" id="pageCount">0</span>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="form-group">
+    <div class="collapsible-header" id="templateHeader">
+      <label style="cursor: pointer; margin-bottom: 0;">Advanced: Manual Template</label>
+      <span class="arrow" id="templateArrow">&#9654;</span>
+    </div>
+    <div class="collapsible-content" id="templateContent">
+      <textarea id="requestTemplateJson" placeholder="Leave empty to use auto-captured template, or paste your own..."></textarea>
+    </div>
+  </div>
+
+  <div class="error-message" id="errorMessage"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
