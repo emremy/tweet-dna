@@ -1,40 +1,45 @@
-"""OpenAI LLM provider implementation."""
+"""OpenAI LLM provider implementation using official OpenAI SDK."""
 
 from __future__ import annotations
 
 import json
 from typing import Any, Dict, Optional
 
-import httpx
+from openai import OpenAI
 
 from tweetdna.providers.base import LLMProvider
 
 
 class OpenAIProvider(LLMProvider):
     """
-    OpenAI API provider.
+    OpenAI API provider using official OpenAI Python SDK.
     
     Supports both text generation and structured JSON output.
-    Uses httpx for HTTP requests to avoid SDK dependency bloat.
     """
+    
+    # Models that don't support custom temperature (only default=1)
+    NO_TEMPERATURE_MODELS = ("gpt-5", "o1", "o3")
 
-    BASE_URL = "https://api.openai.com/v1"
-
-    def __init__(self, api_key: str, default_model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str, default_model: str = "gpt-5.2-mini"):
         self.api_key = api_key
         self.default_model = default_model
-        self._client = httpx.Client(
-            base_url=self.BASE_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=60.0,
-        )
+        self._client: Optional[OpenAI] = None
+        
+        # Initialize client only if we have a valid API key
+        if api_key and api_key != "stub":
+            self._client = OpenAI(
+                api_key=api_key,
+                timeout=60.0,
+            )
 
     @property
     def name(self) -> str:
         return "openai"
+    
+    def _supports_temperature(self, model: str) -> bool:
+        """Check if model supports custom temperature values."""
+        model_lower = model.lower()
+        return not any(model_lower.startswith(prefix) for prefix in self.NO_TEMPERATURE_MODELS)
 
     def generate_text(
         self,
@@ -46,22 +51,22 @@ class OpenAIProvider(LLMProvider):
         """Generate text using OpenAI chat completion."""
         model = model or self.default_model
 
-        # TODO: Add actual API call when credentials are available
-        # For now, stub the response to allow local testing
-        if not self.api_key or self.api_key == "stub":
+        # Return stub if no valid client
+        if self._client is None:
             return self._stub_text_response(prompt)
 
-        payload = {
+        # Build kwargs - only include temperature if model supports it
+        kwargs: Dict[str, Any] = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_completion_tokens": max_tokens,
         }
+        if self._supports_temperature(model):
+            kwargs["temperature"] = temperature
 
-        response = self._client.post("/chat/completions", json=payload)
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        response = self._client.chat.completions.create(**kwargs)
+        
+        return response.choices[0].message.content or ""
 
     def generate_json(
         self,
@@ -69,17 +74,17 @@ class OpenAIProvider(LLMProvider):
         schema: Dict[str, Any],
         model: Optional[str] = None,
         temperature: float = 0.2,
-        max_tokens: int = 2048,
+        max_tokens: int = 8192,
     ) -> Dict[str, Any]:
         """Generate structured JSON using OpenAI with response_format."""
         model = model or self.default_model
 
-        # TODO: Add actual API call when credentials are available
-        if not self.api_key or self.api_key == "stub":
+        # Return stub if no valid client
+        if self._client is None:
             return self._stub_json_response(prompt, schema)
 
-        # Use JSON mode for structured output
-        payload = {
+        # Build kwargs - only include temperature if model supports it
+        kwargs: Dict[str, Any] = {
             "model": model,
             "messages": [
                 {
@@ -88,15 +93,15 @@ class OpenAIProvider(LLMProvider):
                 },
                 {"role": "user", "content": prompt},
             ],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_completion_tokens": max_tokens,
             "response_format": {"type": "json_object"},
         }
+        if self._supports_temperature(model):
+            kwargs["temperature"] = temperature
 
-        response = self._client.post("/chat/completions", json=payload)
-        response.raise_for_status()
-        data = response.json()
-        content = data["choices"][0]["message"]["content"]
+        response = self._client.chat.completions.create(**kwargs)
+        
+        content = response.choices[0].message.content or "{}"
         return json.loads(content)
 
     def _stub_text_response(self, prompt: str) -> str:
@@ -160,8 +165,9 @@ class OpenAIProvider(LLMProvider):
         return {"status": "stub", "message": "Set API key for real responses"}
 
     def close(self) -> None:
-        """Close the HTTP client."""
-        self._client.close()
+        """Close the OpenAI client."""
+        if self._client is not None:
+            self._client.close()
 
     def __enter__(self) -> "OpenAIProvider":
         return self

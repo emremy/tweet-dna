@@ -14,6 +14,9 @@ uvicorn>=0.23.0
 # HTTP client for LLM providers
 httpx>=0.24.0
 
+# OpenAI SDK
+openai>=1.0.0
+
 # Environment configuration
 python-dotenv>=1.0.0
 
