@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+import random
+from typing import Any, Dict, List, Optional, Tuple
 
 from tweetdna.schemas import Persona, SpiceLevel
 
@@ -275,6 +276,166 @@ NEVER USE THESE (engagement bait / question patterns):
 - Any question at the end of a tweet
 """
 
+# =============================================================================
+# DYNAMIC PROMPT HELPERS
+# These add variety and improve output quality
+# =============================================================================
+
+# Hook templates for variety - randomly selected per generation
+HOOK_TEMPLATES = [
+    "learned this the hard way: [insight about topic]",
+    "the thing about [topic] nobody talks about: [observation]",
+    "confession: [vulnerable admission]. here's why it matters",
+    "[X] years of [experience] taught me one thing: [lesson]",
+    "okay but why does everyone [common behavior] when you could just [alternative]",
+    "small thing that changed everything: [specific detail]",
+    "noticed something about [trend/behavior]: [observation]",
+    "ngl, [admission]. but also [counterpoint]",
+    "the real reason [thing happens]: [insight]",
+    "everyone's talking about [trend] but missing [key point]",
+    "started doing [specific action] and [unexpected result]",
+    "here's what [X time] of [activity] actually taught me",
+    "wild how [observation]. anyway [thought]",
+    "been thinking about [topic] and [realization]",
+    "okay so [setup]. turns out [twist]",
+]
+
+# Spice level detailed templates
+SPICE_TEMPLATES = {
+    "low": {
+        "description": "Safe, widely agreeable, low controversy",
+        "risk_guidance": "Stick to universal experiences and gentle observations",
+        "tone": "Warm, supportive, relatable without being edgy",
+        "avoid": "Hot takes, divisive opinions, anything that could offend",
+        "example": "small habits compound. that's literally it. that's the whole advice.",
+    },
+    "medium": {
+        "description": "Mild pushback expected, thought-provoking",
+        "risk_guidance": "Challenge assumptions but don't attack anyone directly",
+        "tone": "Direct, opinionated, willing to disagree",
+        "avoid": "Personal attacks, extreme positions, rage-bait",
+        "example": "discipline isn't the problem. it's that you're optimizing for someone else's definition of success.",
+    },
+    "high": {
+        "description": "Provocative, expect strong reactions both ways",
+        "risk_guidance": "Go against the grain deliberately but with substance",
+        "tone": "Raw, unfiltered, might make people uncomfortable",
+        "avoid": "Hate speech, harassment - provoke thought not anger",
+        "example": "most self-help content is just procrastination cosplaying as productivity. you don't need another book, you need to start.",
+    },
+}
+
+# Emotional targets for different effects
+EMOTIONAL_TARGETS = {
+    "recognition": "make them think 'that's SO me' - tap into shared experiences",
+    "curiosity": "create an itch they need to scratch - hint at something valuable",
+    "surprise": "flip their expectation - subvert the obvious take",
+    "validation": "make them feel seen and understood - articulate what they couldn't",
+    "motivation": "light a fire - make them want to act on something",
+    "humor": "make them exhale or smirk - find the absurd angle",
+}
+
+# Topic classification keywords
+TOPIC_KEYWORDS = {
+    "personal": ["relationship", "dating", "love", "breakup", "friendship", "family", "emotions", "feelings", "heart"],
+    "professional": ["work", "career", "job", "business", "money", "salary", "boss", "office", "promotion", "interview"],
+    "growth": ["habit", "productivity", "routine", "discipline", "goal", "improvement", "learning", "growth"],
+    "social": ["society", "culture", "people", "trend", "generation", "social media", "internet", "online"],
+    "philosophical": ["life", "meaning", "purpose", "happiness", "success", "failure", "truth", "reality"],
+}
+
+# Contrast examples showing bad vs good
+CONTRAST_EXAMPLES = """
+TRANSFORM PATTERNS (study these):
+
+❌ GENERIC/AI: "Consistency is key to achieving your goals in life."
+✅ HUMAN: "showed up every day for 6 months. most days felt pointless. then one random tuesday it clicked."
+
+❌ QUESTION-ENDING: "What do you think about remote work?"
+✅ STATEMENT: "remote work isn't the flex people think it is. the loneliness hits different at 3pm on a tuesday."
+
+❌ OPINION-LABELED: "Unpopular opinion: mornings are underrated"
+✅ DIRECT: "became a morning person by accident. now i understand why those people are so annoying about it."
+
+❌ LISTICLE: "3 tips for better sleep: 1) No screens 2) Cool room 3) Consistent schedule"
+✅ STORY: "tried every sleep hack. the only one that worked? admitting i was just scrolling to avoid tomorrow."
+
+❌ CORPORATE: "Excited to share that I've learned the importance of boundaries"
+✅ REAL: "finally said no to something and the world didn't end. wild concept."
+"""
+
+
+def classify_topic(topic: str) -> Tuple[str, str]:
+    """
+    Classify topic type and return appropriate guidance.
+    
+    Returns:
+        Tuple of (topic_type, topic_guidance)
+    """
+    topic_lower = topic.lower()
+    
+    for topic_type, keywords in TOPIC_KEYWORDS.items():
+        if any(kw in topic_lower for kw in keywords):
+            guidances = {
+                "personal": "This is personal/emotional - be vulnerable, use 'i' statements, share specific moments",
+                "professional": "This is professional - balance relatability with genuine insight, avoid corporate speak",
+                "growth": "This is self-improvement - be honest about struggles, avoid toxic positivity",
+                "social": "This is social commentary - observe without preaching, find the unexpected angle",
+                "philosophical": "This is big-picture - ground abstract ideas in concrete examples",
+            }
+            return topic_type, guidances.get(topic_type, "")
+    
+    return "general", "Lean into your unique perspective, find what's interesting to YOU about this"
+
+
+def get_random_hooks(n: int = 4) -> str:
+    """Select random hook templates for variety."""
+    selected = random.sample(HOOK_TEMPLATES, min(n, len(HOOK_TEMPLATES)))
+    return "HOOK STRUCTURES (pick one or adapt):\n" + "\n".join(f"- {h}" for h in selected)
+
+
+def get_random_emotion() -> Tuple[str, str]:
+    """Select random emotional target."""
+    emotion = random.choice(list(EMOTIONAL_TARGETS.keys()))
+    return emotion, EMOTIONAL_TARGETS[emotion]
+
+
+def get_spice_guidance(spice: SpiceLevel) -> str:
+    """Get detailed guidance for spice level."""
+    template = SPICE_TEMPLATES.get(spice, SPICE_TEMPLATES["medium"])
+    return f"""SPICE LEVEL: {spice.upper()}
+- Style: {template['description']}
+- Risk: {template['risk_guidance']}
+- Tone: {template['tone']}
+- Avoid: {template['avoid']}
+- Example vibe: "{template['example']}"
+"""
+
+
+def get_persona_examples(persona: Persona) -> str:
+    """Extract signature patterns from persona for few-shot learning."""
+    if not persona.examples or not persona.examples.signature_patterns:
+        return ""
+    
+    patterns = persona.examples.signature_patterns[:4]
+    if not patterns:
+        return ""
+    
+    return """YOUR SIGNATURE PATTERNS (match these vibes):
+""" + "\n".join(f"✓ {p}" for p in patterns)
+
+
+# Simplified core rules (less overwhelming than full STRICT_RULES)
+CORE_RULES = """
+RULES (non-negotiable):
+1. lowercase only - no caps except acronyms
+2. no questions at the end
+3. no "unpopular opinion" / "hot take" / "most people" openers  
+4. hook in first 7 words
+5. each draft = unique structure
+6. sound human: use fillers (ngl, tbh, lowkey), trail off, be specific
+"""
+
 PERSONA_SCHEMA_HINT = """
 Output must be a valid JSON object matching this structure:
 {
@@ -370,76 +531,87 @@ def build_generation_prompt(
     NOT the full tweet history. Examples are optional and limited to 3-5.
     
     Algorithm-aware: Optimizes for X ranking signals.
+    Uses dynamic helpers for variety and better outputs.
     """
     persona_json = persona.to_prompt_context()
 
+    # Get dynamic elements for variety
+    topic_type, topic_guidance = classify_topic(topic)
+    hooks_block = get_random_hooks(4)
+    emotion_name, emotion_guidance = get_random_emotion()
+    spice_guidance = get_spice_guidance(spice)
+    persona_examples = get_persona_examples(persona)
+
+    # External examples if provided
     examples_block = ""
     if examples:
         examples_block = f"""
-REFERENCE EXAMPLES (match this style):
+REFERENCE EXAMPLES (match this energy):
 {chr(10).join(f"- {ex}" for ex in examples[:5])}
 """
 
     # Build character constraint instruction
-    char_constraint = f"MAX CHARACTERS: {max_chars}"
-    if min_chars > 0:
-        char_constraint = f"CHARACTER RANGE: {min_chars}-{max_chars} characters (tweets must be at least {min_chars} chars)"
+    char_constraint = f"Length: {min_chars}-{max_chars} chars" if min_chars > 0 else f"Max {max_chars} chars"
 
     # Target engagement guidance
     engagement_guidance = {
-        "reply": "Optimize for REPLIES: pose debatable takes, invite disagreement through bold statements",
-        "like": "Optimize for LIKES: be relatable, quotable, express shared experiences",
-        "repost": "Optimize for REPOSTS: be informative, provide value worth sharing",
-        "mixed": "Balanced engagement: aim for a mix of replies, likes, and reposts",
+        "reply": "Goal: REPLIES - make debatable statements that invite disagreement",
+        "like": "Goal: LIKES - be relatable, quotable, tap into shared experiences", 
+        "repost": "Goal: REPOSTS - provide value worth sharing with others",
+        "mixed": "Goal: MIXED - balance relatability, insight, and shareability",
     }
     engagement_instruction = engagement_guidance.get(target_engagement, engagement_guidance["mixed"])
 
-    prompt = f"""Generate {n} tweet drafts that grab attention and keep people reading.
+    # Simplified, focused prompt
+    prompt = f"""Generate {n} tweets about: {topic}
 
-PERSONA:
+YOUR VOICE:
 {persona_json}
 
-TOPIC: {topic}
-SPICE LEVEL: {spice}
+{persona_examples}
+
+{spice_guidance}
+
+TOPIC INSIGHT: {topic_guidance}
+
+EMOTIONAL TARGET: {emotion_name} - {emotion_guidance}
+
+{engagement_instruction}
 {char_constraint}
-TARGET ENGAGEMENT: {engagement_instruction}
+
+{hooks_block}
+
+{CORE_RULES}
+
+{CONTRAST_EXAMPLES}
+
+FEEL HUMAN:
+- Use fillers naturally (ngl, tbh, lowkey, fr)
+- Trail off sometimes... let thoughts breathe
+- Be specific not generic - weird details > broad statements
+- Imperfect grammar is fine. so is this.
+- One-word reactions: "brutal." "pain." "wild."
 {examples_block}
-
-{STRICT_RULES}
-
-{TWITTER_STYLE}
-
-{ENGAGEMENT_RULES}
-
-{ALGORITHM_CONSTRAINTS}
-
-{DIVERSITY_NOTE}
 
 {GUARDRAILS}
 
-Output a JSON object with this structure:
+Output JSON:
 {{
   "drafts": [
     {{
-      "text": "tweet text here (MUST be lowercase)",
-      "tags": ["tag1", "tag2"],
-      "hook_type": "what attention hook was used",
-      "rationale": "one line explaining the approach",
+      "text": "tweet (lowercase, {min_chars}-{max_chars} chars)",
+      "tags": ["topic tags"],
+      "hook_type": "what hook was used",
+      "rationale": "why this works",
       "confidence": 0.0-1.0,
       "expected_engagement": "reply|like|repost|mixed",
       "suppression_risk": "low|medium|high",
-      "algorithm_alignment_notes": "brief note on how this aligns with ranking signals"
+      "algorithm_alignment_notes": "brief note"
     }}
   ]
 }}
 
-Generate exactly {n} drafts. Each MUST:
-1. Be entirely lowercase
-2. Hook attention in the first few words
-3. Avoid all suppression triggers and banned phrases
-4. Have a UNIQUE structure (no repeated patterns across drafts)
-5. NOT start with opinion labels like "unpopular opinion", "hot take", or "most people miss this"
-JSON only:"""
+Generate exactly {n} drafts. Each MUST have a UNIQUE structure. JSON only:"""
 
     return prompt
 
@@ -789,76 +961,86 @@ def build_reply_prompt(
     Algorithm-aware: Optimizes for conversation depth, avoids low-effort patterns.
     """
     persona_json = persona.to_prompt_context()
+    persona_examples = get_persona_examples(persona)
     
     # Get tone description
     tone_desc = REPLY_TONE_DESCRIPTIONS.get(tone, REPLY_TONE_DESCRIPTIONS["neutral"])
     
     # Build character constraint
-    char_constraint = f"MAX CHARACTERS: {max_chars}"
-    if min_chars > 0:
-        char_constraint = f"CHARACTER RANGE: {min_chars}-{max_chars} characters"
+    char_constraint = f"{min_chars}-{max_chars} chars" if min_chars > 0 else f"max {max_chars} chars"
     
     # Optional context block
-    context_block = ""
-    if context:
-        context_block = f"\nADDITIONAL CONTEXT: {context}\n"
+    context_block = f"Context: {context}" if context else ""
     
     # Intent guidance
-    intent_block = ""
+    intent_guidance = ""
     if intent:
-        intent_block = f"\nREPLY INTENT: {intent} - craft replies with this specific approach\n"
+        intent_map = {
+            "agree_extend": "agree with their point AND add something new they didn't mention",
+            "disagree_reason": "push back with specific reasoning, not just 'i disagree'",
+            "add_context": "drop relevant info or context they missed",
+            "share_experience": "relate with a specific personal story/example",
+            "challenge": "question a specific assumption they made",
+            "joke": "find the funny angle that still relates to their point",
+            "react": "genuine emotional response to what they said",
+        }
+        intent_guidance = f"Approach: {intent} - {intent_map.get(intent, intent)}"
 
-    prompt = f"""Generate {n} reply drafts to this tweet, matching your persona's voice.
+    # Simplified, focused reply prompt
+    prompt = f"""Reply to this tweet as yourself. Sound like you're jumping into a real conversation.
 
-PERSONA:
+THEIR TWEET:
+"{original_tweet}"
+{context_block}
+
+YOUR VOICE:
 {persona_json}
 
-ORIGINAL TWEET (replying to this):
-"{original_tweet}"
-{context_block}{intent_block}
-REPLY TONE: {tone} - {tone_desc}
+{persona_examples}
 
-{STRICT_RULES}
-{char_constraint}
+TONE: {tone} - {tone_desc}
+{intent_guidance}
+Length: {char_constraint}
 
-{TWITTER_STYLE}
+{CORE_RULES}
 
-{REPLY_STYLE}
+REPLY-SPECIFIC:
+- Respond to THEIR point, not just the topic in general
+- Add something they didn't say - new angle, example, pushback
+- Match their energy level
+- DON'T end with a question
+- DON'T be generic ("great point!", "so true!")
+- Brief is fine - replies don't need to be essays
 
-{REPLY_ALGORITHM_RULES}
+HUMAN REPLY PATTERNS:
+- Quick reactions: "oh damn", "wait really", "lmaooo"
+- Relating: "dude same", "literally me", "felt this"
+- Adding on: "also", "and honestly", "plus"
+- Disagreeing: "idk about that", "eh", "hmm not sure"
+- Casual: "fr fr", "this tbh", "okay but"
 
 {GUARDRAILS}
 
-Output a JSON object:
+Output JSON:
 {{
   "replies": [
     {{
-      "text": "your reply text here (MUST be lowercase)",
-      "tone_executed": "how the tone was expressed",
+      "text": "reply text (lowercase, {char_constraint})",
       "intent": "agree_extend|disagree_reason|add_context|share_experience|challenge|joke|react",
-      "approach": "agree|disagree|extend|react|challenge|joke",
-      "value_added": "what new angle/info this reply contributes",
-      "rationale": "why this reply works",
+      "approach": "what angle you took",
+      "value_added": "what new thing this contributes",
+      "rationale": "why this works as a reply",
       "confidence": 0.0-1.0,
       "suppression_risk": "low|medium|high",
       "conversation_value": "low|medium|high"
     }}
   ],
   "original_tweet_analysis": {{
-    "main_point": "what the original tweet is about",
-    "engagement_opportunity": "where a reply can add value"
+    "main_point": "what they're saying",
+    "reply_opportunity": "where you can add value"
   }}
 }}
 
-CRITICAL CHECKS before outputting each reply:
-1. Is it lowercase? (MUST be lowercase)
-2. Does it add value not in the original? (if no, discard)
-3. Is it generic praise or empty agreement? (if yes, discard)
-4. Does it respond specifically to their content? (if no, revise)
-5. Does it use a UNIQUE structure from other replies? (no repeated patterns)
-6. Does it avoid engagement bait? (no "thoughts?", questions, etc.)
-
-Generate exactly {n} replies. Each must feel like a natural response, NOT a standalone tweet.
-Each must add DISTINCT VALUE. All lowercase. No engagement bait. JSON only:"""
+Generate {n} replies. Each must add DISTINCT value and have UNIQUE structure. JSON only:"""
 
     return prompt
