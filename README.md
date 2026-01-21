@@ -15,6 +15,7 @@ Local-first Twitter persona profiling and tweet generation.
 - ✅ **Draft Review** — Scores and refines content for persona alignment
 - 🔒 **Privacy-First** — Your tweet history stays local; only persona is sent to LLM
 - 🌐 **Extension-First** — No API keys for Twitter; import from browser extension
+- 📈 **Algorithm-Aware** — Optimizes content for X's ranking signals (replies, dwell time, shares)
 
 ---
 
@@ -107,6 +108,8 @@ tweetdna generate tweet --topic "AI tools" --n 5
 | `--max-chars` | 280 | Maximum characters |
 | `--use-examples` | false | Include similar historical tweets |
 
+**Algorithm optimization:** Tweets are automatically optimized for X's ranking signals. The output includes `suppression_risk` and `expected_engagement` metadata.
+
 ### Generate Thread
 
 ```bash
@@ -121,6 +124,12 @@ tweetdna generate thread --topic "Building in public" --tweets 5 --draft
 | `--draft` | false | Generate full drafts (vs outline) |
 | `--min-chars` | 0 | Minimum characters per tweet |
 | `--max-chars` | 280 | Maximum characters per tweet |
+
+**Algorithm optimization:**
+- First tweet (hook) is optimized to stand alone in the feed
+- Each tweet validated for unique value (no filler/padding)
+- May return fewer tweets if content density is insufficient
+- Output includes `hook_strength` and `density_validated` metadata
 
 ### Generate Reply
 
@@ -167,6 +176,12 @@ tweetdna generate reply --to "Original tweet text here" --tone playful
 --context "Tweet is going viral with 50k quote tweets"
 ```
 
+**Algorithm optimization:**
+- Replies avoid low-effort patterns (generic praise, emoji-only, "this", "same")
+- Each reply adds distinct value to the conversation
+- Output includes `conversation_value` and `reply_intent` metadata
+- Replies are weighted heavily in X's ranking system
+
 ### Review
 
 ```bash
@@ -183,6 +198,20 @@ tweetdna review --auto-refine        # Auto-generate improved versions
 | 80-100 | ✅ Great match to persona |
 | 60-79 | ⚠️ Okay, could be closer |
 | 0-59 | ❌ Doesn't sound like you |
+
+**Algorithm alignment (new):**
+
+Reviews now include algorithm-specific scoring:
+
+| Metric | Description |
+|--------|-------------|
+| `algorithm_alignment_score` | 0-100, how well optimized for ranking |
+| `suppression_risk_score` | 0-100, likelihood of demotion (lower is better) |
+| `repetition_risk` | low/medium/high |
+| `conversation_value` | low/medium/high |
+| `persona_algorithm_conflicts` | Any conflicts between style and algorithm |
+
+Auto-refine triggers on: alignment < 80 OR suppression_risk > 50
 
 ### API Server
 
@@ -307,6 +336,68 @@ LOCAL_LLM_MODEL=llama3
 - Replies don't end with questions
 - Avoids corporate/marketing language
 - Matches real Twitter posting patterns
+
+**X Algorithm Alignment:**
+- Optimizes for ranking signals (replies, dwell time, shares, follows)
+- Avoids suppression triggers (engagement bait, excessive hashtags, spam patterns)
+- Thread density validation ensures quality over quantity
+- Reply generation avoids low-effort patterns (generic praise, emoji-only)
+
+---
+
+## X Algorithm Alignment
+
+TweetDNA includes algorithm-aware optimization based on the official X recommendation system. This helps generate content that performs well in the For You feed.
+
+### How It Works
+
+The generation and review systems understand X's ranking signals:
+
+**Positive signals (algorithm rewards):**
+- Reply-worthy content that sparks conversation
+- Dwell time (content worth reading fully)
+- Quote-worthy content others want to expand on
+- Share-worthy content people send via DM
+- Follow-worthy content that builds audience
+
+**Suppression triggers (algorithm penalizes):**
+- Engagement bait ("like if...", "RT for...", "follow for follow")
+- Excessive hashtags (more than 2-3)
+- Excessive @mentions
+- Low-effort/empty content
+- Spam-like repetition
+
+### Algorithm Metadata in Outputs
+
+Generated drafts now include algorithm alignment metadata:
+
+```python
+draft.expected_engagement    # "reply" | "like" | "repost" | "mixed"
+draft.suppression_risk       # "low" | "medium" | "high"
+draft.conversation_value     # "low" | "medium" | "high"
+draft.algorithm_alignment_notes  # Brief explanation
+```
+
+Review results include additional scoring:
+
+```python
+result.algorithm_alignment_score  # 0-100
+result.suppression_risk_score     # 0-100 (lower is better)
+result.repetition_risk            # "low" | "medium" | "high"
+result.persona_algorithm_conflicts  # List of resolved conflicts
+```
+
+### Quick Suppression Check
+
+The reviewer includes a deterministic check (no LLM needed):
+
+```python
+from tweetdna.services import ReviewerService
+
+reviewer = ReviewerService(repo, provider)
+risk = reviewer.check_suppression_risk("Like if you agree! #blessed")
+# {'risk_level': 'medium', 'patterns_found': ['engagement_bait:like if'], 'recommendation': 'review'}
+```
 
 ---
 

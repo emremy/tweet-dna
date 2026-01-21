@@ -1,10 +1,15 @@
 """Pydantic schemas for TweetDNA."""
 
 from tweetdna.schemas.generation import (
+    ConversationValue,
     Draft,
+    ExpectedEngagement,
     GenerationKind,
+    PersonaAlgorithmConflict,
+    ReplyIntent,
     ReplyTone,
     ReviewResult,
+    RiskLevel,
     SpiceLevel,
 )
 from tweetdna.schemas.persona import (
@@ -30,4 +35,10 @@ __all__ = [
     "SpiceLevel",
     "GenerationKind",
     "ReplyTone",
+    # Algorithm-aware types
+    "ReplyIntent",
+    "ExpectedEngagement",
+    "RiskLevel",
+    "ConversationValue",
+    "PersonaAlgorithmConflict",
 ]
